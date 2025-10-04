@@ -1,17 +1,20 @@
-import mongoose from "mongoose";
+import mongoose, { Connection } from "mongoose";
 import dotenv from "dotenv";
-
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/neighbour-helper";
-const connectDB = async () => {
-  try {
-    await mongoose.connect(MONGO_URI);
-    console.log("✅ MongoDB connected");
-  } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
-    process.exit(1);
-  }
-};
+const MONGO_URI = process.env.MONGO_URI|| "";
 
-export default connectDB;
+// Cache connections per database
+const connections: { [key: string]: Connection } = {};
+
+export const getConnection = async (dbName: string): Promise<Connection> => {
+  if (!connections[dbName]) {
+    const conn = await mongoose.createConnection(`${MONGO_URI}${dbName}?retryWrites=true&w=majority&appName=Cluster0`);
+
+    conn.on("connected", () => console.log(`✅ Connected to DB: ${dbName}`));
+    conn.on("error", (err) => console.error(`❌ Error connecting to DB ${dbName}:`, err));
+
+    connections[dbName] = conn;
+  }
+  return connections[dbName];
+};
